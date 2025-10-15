@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid()) @db.Uuid
+  firstName     String
+  middleName    String?
+  lastName      String?
+  email         String         @unique
+  password      String
+  branch        Branch
+  rollNumber    String?
+  roleId        String         @db.Uuid
+  role          Role           @relation(fields: [roleId], references: [id])
+  form          Form?
+  submission    Submission?
+  refreshToken  RefreshToken[]
+  emailVerified Boolean        @default(false)
+  emailAlloted  Boolean        @default(false)
+  status        Status         @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RefreshToken {
+  id     String @id @default(uuid()) @db.Uuid
+  token  String @unique
+  userId String @unique @db.Uuid
+  user   User   @relation(fields: [userId], references: [id])
+
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Role {
+  id    String   @id @default(uuid()) @db.Uuid
+  name  RoleType @unique
+  users User[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Form {
+  id         String       @id @default(uuid()) @db.Uuid
+  formName   String
+  userId     String       @unique @db.Uuid
+  user       User         @relation(fields: [userId], references: [id])
+  question   Question[]
+  submission Submission[]
+  shareId    String?      @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Question {
+  id       String   @id @default(uuid()) @db.Uuid
+  formId   String   @db.Uuid
+  form     Form     @relation(fields: [formId], references: [id])
+  question String
+  options  Option[]
+  required Boolean  @default(true)
+  type     Type     @default(TEXT)
+  answer   Answer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Option {
+  id         String   @id @default(uuid()) @db.Uuid
+  questionId String   @db.Uuid
+  question   Question @relation(fields: [questionId], references: [id])
+  option     String   @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Submission {
+  id     String   @id @default(uuid()) @db.Uuid
+  userId String   @unique @db.Uuid
+  user   User     @relation(fields: [userId], references: [id])
+  form   Form     @relation(fields: [formId], references: [id])
+  formId String   @db.Uuid
+  answer Answer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Answer {
+  id           String     @id @default(uuid()) @db.Uuid
+  questionId   String     @db.Uuid
+  question     Question   @relation(fields: [questionId], references: [id])
+  submissionId String     @db.Uuid
+  submission   Submission @relation(fields: [submissionId], references: [id])
+  response     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum RoleType {
+  SUPERADMIN
+  ADMIN
+  STUDENT
+}
+
+enum Branch {
+  CS
+  DCS
+  EC
+  DEC
+  ME
+  EE
+  MS
+  MNC
+  EP
+  CH
+  CE
+}
+
+enum Status {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum Type {
+  TEXT
+  MCQ
+  NUMBER
+  EMAIL
+}
