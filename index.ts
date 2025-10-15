@@ -5,13 +5,12 @@ import cookieParser from "cookie-parser";
 import express from "express";
 import { otpRouter } from "./src/otp/otp.controller";
 import { authRouter } from "./src/auth/auth.controller";
-// import { adminRouter } from "./src/admin/admin.controller";
 import { superAdminRouter } from "./src/super_admin/super_admin.controller";
 import { studentRouter } from "./src/student/student.controller";
 import { isAdmin, isStudent, isSuperAdmin } from "./src/middleware";
 import { decodeRequestId } from "./src/middleware/requestId";
 import { rateLimit } from "express-rate-limit";
-import { adminRouter } from "./src/admin/v0/admin.controller";
+import { adminRouter } from "./src/admin/admin.controller";
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes

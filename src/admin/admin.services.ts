@@ -1,6 +1,6 @@
 import crypto from "crypto";
-import { prisma } from "../../db";
-import { Type } from "../../../generated/prisma";
+import { prisma } from "../db";
+import { Type } from "../../generated/prisma";
 
 // Create a new form
 // export const createForm = async (
