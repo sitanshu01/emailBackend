@@ -1,5 +1,6 @@
 import express from "express";
 import { signinSchema, signupSchema } from "../zod";
+import logger from "../config/logger";
 import { signin, signup } from "./auth.service";
 import { prisma } from "../db";
 import { signAccessToken } from "../util/token";
@@ -55,8 +56,10 @@ authRouter.post("/signup", async (req, res) => {
 });
 
 authRouter.post("/signin", async (req, res) => {
+  logger.info("signin");
   const isValidInput = signinSchema.safeParse(req.body);
   if (!isValidInput.success) {
+    logger.error(isValidInput.error);
     const errorMessage =
       isValidInput.error?.issues?.[0]?.message ?? "Invalid input";
 
@@ -71,23 +74,24 @@ authRouter.post("/signin", async (req, res) => {
     refreshToken,
     accessToken,
     statusCode: status,
+    user,
   } = await signin(email, password, role);
   if (msg && refreshToken && accessToken) {
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: "/",
-      maxAge: 60* 15 * 1000,
+      maxAge: 60 * 15 * 1000,
     });
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
-    return res.status(200).json({ message: "signin success" });
+    return res.status(200).json({ message: "signin success", user });
   } else {
     return res.status(status ?? 400).json({ error });
   }
@@ -144,7 +148,7 @@ authRouter.post("/refresh", async (req, res) => {
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+      sameSite: "none",
       path: "/",
       maxAge: 60 * 60 * 1 * 1,
     });
@@ -152,7 +156,7 @@ authRouter.post("/refresh", async (req, res) => {
       message: "Refresh token refreshed",
     });
   } catch (error) {
-    console.log(error);
+    logger.error(error);
     return res.status(500).json({
       message: "Something went wrong. Please try again later",
     });

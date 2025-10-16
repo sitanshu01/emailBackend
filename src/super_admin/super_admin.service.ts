@@ -1,10 +1,11 @@
 import argon2 from "argon2";
 import { type Branch } from "../../generated/prisma";
+import logger from "../config/logger";
 import { prisma } from "../db";
 import { sendEmail } from "../email";
 import generatePassword from "./generate_password";
 
-export const createSuperAdmin = async (
+export const createAdmin = async (
   firstName: string,
   email: string,
   branch: Branch,
@@ -15,6 +16,7 @@ export const createSuperAdmin = async (
   const password = generatePassword(12);
   const hashedPassword = await argon2.hash(password);
   try {
+    const emailSent = await sendEmail(email, `Password: ${password}`);
     await prisma.user.create({
       data: {
         firstName,
@@ -31,28 +33,26 @@ export const createSuperAdmin = async (
         password: hashedPassword,
       },
     });
-
-    const emailSent = await sendEmail(email, `Password: ${password}`);
     if (!emailSent.success) {
       return { success: false, error: emailSent.error, statusCode: 500 };
     }
     return { success: true, statusCode: 200 };
   } catch (error) {
-    console.log(error);
+    logger.error(error);
     return { success: false, error: "User already exists", statusCode: 500 };
   }
 };
 
-export const deleteSuperAdmin = async (email: string) => {
+export const deleteAdmin = async (id: string) => {
   try {
     const user = await prisma.user.delete({
       where: {
-        email,
+        id,
       },
     });
     return { status: true, data: user };
   } catch (error) {
-    console.log(error);
+    logger.error(error);
     return { status: false, error: "User does not exist" };
   }
 };

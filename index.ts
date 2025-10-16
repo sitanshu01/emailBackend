@@ -47,7 +47,7 @@ const corsOptions = {
     }
   },
   credentials: true, // Allow cookies to be sent
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: [
     "Content-Type",
     "Authorization",
@@ -59,6 +59,13 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+import logger from "./src/config/logger";
+
+app.use((req, res, next) => {
+    logger.info(`${req.method} ${req.url}`);
+    next();
+});
+
 app.get("/health_check", (req, res) => {
   return res.json({
     msg: "OK",
@@ -66,11 +73,15 @@ app.get("/health_check", (req, res) => {
 });
 app.use("/api/v1/otp", decodeRequestId, otpRouter);
 app.use("/api/v1/auth", authRouter);
-// app.use("/api/v1/admin", isAdmin, adminRouter);
 app.use("/api/v1/admin", isAdmin, adminRouter);
 app.use("/api/v1/super_admin", isSuperAdmin, superAdminRouter);
 app.use("/api/v1/student", isStudent, studentRouter);
 
+app.use((err: any, req: any, res: any, next: any) => {
+    logger.error(err.stack);
+    res.status(500).send('Something broke!');
+});
+
 app.listen(3000, () => {
-  console.log("Server is running on port 3000");
+  logger.info("Server is running on port 3000");
 });

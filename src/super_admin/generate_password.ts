@@ -27,3 +27,4 @@ function generatePassword(length = 12) {
 }
 
 export default generatePassword;
+

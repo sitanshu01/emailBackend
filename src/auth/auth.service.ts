@@ -1,5 +1,6 @@
 import argon from "argon2";
 import { Branch, RoleType } from "../../generated/prisma";
+import logger from "../config/logger";
 import { prisma } from "../db";
 import { setOTP } from "../otp/otp.service";
 import { generateTokens } from "../util/token";
@@ -41,13 +42,11 @@ export const signin = async (
   password: string,
   role: RoleType,
 ) => {
+  logger.info("email", email);
   try {
     const user = await prisma.user.findFirst({
       where: {
         email,
-        role: {
-          name: role,
-        },
       },
       include: {
         role: {
@@ -58,6 +57,12 @@ export const signin = async (
       },
     });
     if (!user) {
+      logger.warn("user not found", email);
+      return { error: "Invalid Credentials", statusCode: 400, success: false };
+    }
+
+    if (role !== user.role.name) {
+      logger.warn("role not matched", email, role);
       return { error: "Invalid Credentials", statusCode: 400, success: false };
     }
 
@@ -67,6 +72,7 @@ export const signin = async (
 
     const isPasswordCorrect = await argon.verify(user.password, password);
     if (!isPasswordCorrect) {
+      logger.warn("password not correct", email, password);
       return { error: "Invalid Credentials", status: 400, success: false };
     }
 
@@ -100,12 +106,10 @@ export const signin = async (
       user,
     };
   } catch (error) {
-    console.log(error);
+    logger.error(error);
     return {
       error: "Something went wrong. Please try again later",
       status: 500,
     };
   }
 };
-
-export const refresh = async (refreshToken: string) => {};

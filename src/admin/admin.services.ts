@@ -1,55 +1,48 @@
 import crypto from "crypto";
 import { prisma } from "../db";
-import { Type } from "../../generated/prisma";
+import { Type, Status } from "../../generated/prisma";
 
-// Create a new form
-// export const createForm = async (
-//   userId: string,
-//   formName: string,
-//   questions: {
-//     question: string;
-//     type: keyof typeof Type; // ✅ automatically infers: "TEXT" | "MCQ" | "NUMBER" | "EMAIL"
-//     required: boolean;
-//     options?: string[];
-//   }[]
-// ) => {
-//   try {
-//     if (!formName || !Array.isArray(questions) || questions.length === 0) {
-//       return { success: false, error: "Invalid form data" };
-//     }
+// Update submission status
+export const updateSubmissionStatus = async (
+  submissionId: string,
+  adminUserId: string,
+  status: Status,
+) => {
+  try {
+    // Verify that the adminUserId owns the form associated with the submission
+    const submission = await prisma.submission.findUnique({
+      where: { id: submissionId },
+      include: {
+        form: {
+          select: {
+            userId: true,
+          },
+        },
+      },
+    });
 
-//     const newForm = await prisma.form.create({
-//       data: {
-//         formName,
-//         userId,
-//         question: {
-//           create: questions.map((q) => ({
-//             question: q.question,
-//             type: Type[q.type], // ✅ Directly access Prisma enum via keyof
-//             required: q.required,
-//             options:
-//               q.type === "MCQ"
-//                 ? {
-//                     create:
-//                       q.options
-//                         ?.filter((opt) => opt && opt.trim() !== "")
-//                         .map((opt) => ({ option: opt })) || [],
-//                   }
-//                 : undefined,
-//           })),
-//         },
-//       },
-//       include: {
-//         question: { include: { options: true } },
-//       },
-//     });
+    if (!submission) {
+      return { success: false, error: "Submission not found" };
+    }
 
-//     return { success: true, data: newForm };
-//   } catch (error) {
-//     console.error("Error creating form:", error);
-//     return { success: false, error: "Internal server error" };
-//   }
-// };
+    if (submission.form.userId !== adminUserId) {
+      return {
+        success: false,
+        error: "Unauthorized: Admin does not own this form",
+      };
+    }
+
+    const updatedSubmission = await prisma.submission.update({
+      where: { id: submissionId },
+      data: { status },
+    });
+
+    return { success: true, data: updatedSubmission };
+  } catch (error) {
+    console.error(error);
+    return { success: false, error: "Failed to update submission status" };
+  }
+};
 
 interface QuestionInput {
   questionId?: string; // Add questionId to match usage in updateForm
@@ -62,7 +55,7 @@ interface QuestionInput {
 export const createForm = async (
   userId: string,
   formName: string,
-  questions: QuestionInput[]
+  questions: QuestionInput[],
 ) => {
   try {
     const newForm = await prisma.form.create({
@@ -111,7 +104,7 @@ export const getForms = async (userId: string) => {
     console.error(error);
     return { success: false, error: "Failed to fetch forms" };
   }
-}
+};
 
 //get form
 export const getForm = async (formId: string, userId: string) => {
@@ -119,8 +112,8 @@ export const getForm = async (formId: string, userId: string) => {
     const form = await prisma.form.findFirst({
       where: { id: formId, userId },
       include: {
-        question: { 
-          include: { options: true } 
+        question: {
+          include: { options: true },
         },
       },
     });
@@ -132,14 +125,14 @@ export const getForm = async (formId: string, userId: string) => {
     console.error(error);
     return { success: false, error: "Failed to fetch form" };
   }
-}
+};
 
 // Update existing form
 export const updateForm = async (
   formId: string,
   userId: string,
   formName: string,
-  questions: QuestionInput[]
+  questions: QuestionInput[],
 ) => {
   try {
     // First verify ownership
@@ -235,6 +228,19 @@ export const getSubmissions = async (
   branch?: string,
 ) => {
   try {
+    const form = await prisma.form.findUnique({
+      where: { id: formId, userId },
+      include: {
+        question: {
+          include: { options: true },
+        },
+      },
+    });
+
+    if (!form) {
+      return { success: false, error: "Form not found", data: null };
+    }
+
     const submissions = await prisma.submission.findMany({
       where: {
         formId,
@@ -260,12 +266,100 @@ export const getSubmissions = async (
             branch: true,
           },
         },
-        answer: true,
+        answer: {
+          include: { question: true }, // Include question details for each answer
+        },
       },
     });
-    return { success: true, data: submissions };
+    return { success: true, data: { form, submissions } };
   } catch (error) {
     console.error(error);
-    return { success: false, error: "Failed to fetch submissions" };
+    return { success: false, error: "Failed to fetch submissions", data: null };
+  }
+};
+
+export const getAdminDashboardSummary = async (adminUserId: string) => {
+  try {
+    const totalForms = await prisma.form.count({
+      where: { userId: adminUserId },
+    });
+
+    const totalSubmissions = await prisma.submission.count({
+      where: {
+        form: {
+          userId: adminUserId,
+        },
+      },
+    });
+
+    const pendingSubmissions = await prisma.submission.count({
+      where: {
+        form: {
+          userId: adminUserId,
+        },
+        status: Status.PENDING,
+      },
+    });
+
+    const approvedSubmissions = await prisma.submission.count({
+      where: {
+        form: {
+          userId: adminUserId,
+        },
+        status: Status.APPROVED,
+      },
+    });
+
+    const rejectedSubmissions = await prisma.submission.count({
+      where: {
+        form: {
+          userId: adminUserId,
+        },
+        status: Status.REJECTED,
+      },
+    });
+
+    const formsWithSubmissionCounts = await prisma.form.findMany({
+      where: { userId: adminUserId },
+      select: {
+        id: true,
+        formName: true,
+        submission: {
+          select: {
+            status: true,
+          },
+        },
+      },
+    });
+
+    const formsSummary = formsWithSubmissionCounts.map((form) => {
+      const pendingCount = form.submission.filter(s => s.status === Status.PENDING).length;
+      const approvedCount = form.submission.filter(s => s.status === Status.APPROVED).length;
+      const rejectedCount = form.submission.filter(s => s.status === Status.REJECTED).length;
+
+      return {
+        id: form.id,
+        formName: form.formName,
+        pending: pendingCount,
+        approved: approvedCount,
+        rejected: rejectedCount,
+      };
+    });
+
+
+    return {
+      success: true,
+      data: {
+        totalForms,
+        totalSubmissions,
+        pendingSubmissions,
+        approvedSubmissions,
+        rejectedSubmissions,
+        formsSummary,
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching admin dashboard summary:", error);
+    return { success: false, error: "Failed to fetch admin dashboard summary" };
   }
 };
