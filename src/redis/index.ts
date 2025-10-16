@@ -1,10 +1,8 @@
 import argon2 from "argon2";
 import Redis from "ioredis";
 
-const redis = new Redis({
-  host: "localhost",
-  port: 6379,
-});
+const redisUrl = process.env.REDIS_URL;
+const redis = new Redis(redisUrl || "redis://redis:6379");
 
 const EXPIRY_SECONDS = 300; // 5 minutes
 
