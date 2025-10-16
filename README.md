@@ -44,7 +44,14 @@ This is the backend API for the FullStack Web Development project. It handles us
    docker-compose exec backend bunx prisma migrate deploy
    ```
 
-5. **Access the Backend API:**
+5. **Seed the Database:**
+   Populate the database with initial data (e.g., default roles).
+
+   ```bash
+   docker-compose exec backend bun prisma/seed.ts
+   ```
+
+6. **Access the Backend API:**
    The backend API will be running on `http://localhost:3000`.
 
 ## Stopping the Services
