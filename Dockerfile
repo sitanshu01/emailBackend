@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY package.json bun.lock ./
 
+RUN apt-get update && apt-get install -y openssl
 RUN bun install --frozen-lockfile
 
 COPY . .
