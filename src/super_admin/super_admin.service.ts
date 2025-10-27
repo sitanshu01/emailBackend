@@ -12,11 +12,14 @@ export const createAdmin = async (
   middleName?: string,
   lastName?: string,
 ) => {
-  // const password = Math.random().toString(36).substring(2, 15);
   const password = generatePassword(12);
   const hashedPassword = await argon2.hash(password);
   try {
-    const emailSent = await sendEmail(email, `Password: ${password}`);
+    const emailSent = await sendEmail(
+      email,
+      `Password: ${password}`,
+      "Password",
+    );
     await prisma.user.create({
       data: {
         firstName,

@@ -2,11 +2,11 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-export async function sendEmail(to: string, content: string) {
+export async function sendEmail(to: string, content: string, subject: string) {
   const { error } = await resend.emails.send({
     from: "Anurag <send@anuragcode.me>",
     to: [to],
-    subject: "Authentication Code",
+    subject: subject,
     html: content,
   });
 

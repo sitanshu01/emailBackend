@@ -11,6 +11,6 @@ export const setOTP = async (email: string, user: any) => {
   if (!isOTPStored) {
     return { success: false, requestId };
   }
-  await sendEmail(email, "OTP: " + otp);
+  await sendEmail(email, "OTP: " + otp, "Authentication Code");
   return { success: true, requestId };
 };
